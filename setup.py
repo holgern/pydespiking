@@ -14,7 +14,7 @@ VERSION = '%d.%d.%d' % (MAJOR, MINOR, MICRO)
 
 
 # Return the git revision as a string
-def svn_version():
+def git_version():
     def _minimal_ext_cmd(cmd):
         # construct minimal environment
         env = {}
@@ -31,12 +31,12 @@ def svn_version():
         return out
 
     try:
-        out = _minimal_ext_cmd(['svn',  'info', '--show-item', 'revision'])
-        SVN_REVISION = out.strip().decode('ascii')
+        out = _minimal_ext_cmd(['git', 'rev-parse', 'HEAD'])
+        GIT_REVISION = out.strip().decode('ascii')
     except OSError:
-        SVN_REVISION = "Unknown"
+        GIT_REVISION = "Unknown"
 
-    return SVN_REVISION
+    return GIT_REVISION
 
 
 def get_version_info():
@@ -44,19 +44,21 @@ def get_version_info():
     # write_version_py(), otherwise the import of pydespiking.version messes
     # up the build under Python 3.
     FULLVERSION = VERSION
-    if os.path.exists('pydespiking/version.py'):
+    if os.path.exists('.git'):
+        GIT_REVISION = git_version()
+    elif os.path.exists('pydespiking/version.py'):
         # must be a source distribution, use existing version file
-        # load it as a separate module to not load pywt/__init__.py
+        # load it as a separate module to not load pydespiking/__init__.py
         import imp
         version = imp.load_source('pydespiking.version', 'pydespiking/version.py')
-        SVN_REVISION = version.svn_revision
+        GIT_REVISION = version.git_revision
     else:
-        SVN_REVISION = svn_version()
+        GIT_REVISION = "Unknown"
 
     if not ISRELEASED:
-        FULLVERSION += '.dev0+' + SVN_REVISION[:7]
+        FULLVERSION += '.dev0+' + GIT_REVISION[:7]
 
-    return FULLVERSION, SVN_REVISION
+    return FULLVERSION, GIT_REVISION
 
 
 def write_version_py(filename='pydespiking/version.py'):
@@ -65,19 +67,19 @@ def write_version_py(filename='pydespiking/version.py'):
 short_version = '%(version)s'
 version = '%(version)s'
 full_version = '%(full_version)s'
-svn_revision = '%(svn_revision)s'
+git_revision = '%(git_revision)s'
 release = %(isrelease)s
 
 if not release:
     version = full_version
 """
-    FULLVERSION, SVN_REVISION = get_version_info()
+    FULLVERSION, GIT_REVISION = get_version_info()
 
     a = open(filename, 'w')
     try:
         a.write(cnt % {'version': VERSION,
                        'full_version': FULLVERSION,
-                       'svn_revision': SVN_REVISION,
+                       'git_revision': GIT_REVISION,
                        'isrelease': str(ISRELEASED)})
     finally:
         a.close()
@@ -97,17 +99,6 @@ if sys.platform == "darwin":
 
 setup_args = {}
 
-
-
-def generate_cython():
-    cwd = os.path.abspath(os.path.dirname(__file__))
-    print("Cythonizing sources")
-    p = subprocess.call([sys.executable,
-                          os.path.join(cwd, 'util', 'cythonize.py'),
-                          'pydespiking'],
-                         cwd=cwd)
-    if p != 0:
-        raise RuntimeError("Running cythonize failed!")
 
 
 def configuration(parent_package='',top_path=None):
@@ -176,7 +167,7 @@ def setup_package():
         except ImportError:
             from distutils.core import setup
 
-        FULLVERSION, SVN_REVISION = get_version_info()
+        FULLVERSION, GIT_REVISION = get_version_info()
         metadata['version'] = FULLVERSION
     else:
         if (len(sys.argv) >= 2 and sys.argv[1] == 'bdist_wheel') or (

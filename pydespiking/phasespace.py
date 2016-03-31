@@ -11,10 +11,41 @@ from __future__ import division, print_function, absolute_import
 import numpy as np
 from scipy.interpolate import interp1d
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 
-__all__ = ['despike_phasespace3d','excludeoutlier_ellipsoid3d']
+__all__ = ['gradient', 'despike_phasespace3d','excludeoutlier_ellipsoid3d']
+
+def gradient(f):
+    return np.concatenate((np.array([0]),np.diff(f)))
 
 def excludeoutlier_ellipsoid3d(xi,yi,zi,theta):
+    """
+ This program excludes the points outside of ellipsoid in two-
+ dimensional domain
+
+ Input
+   xi : input x data
+   yi : input y data
+   zi : input z data
+   theta  : angle between xi and zi
+
+ Output
+   xp : excluded x data
+   yp : excluded y data
+   zp : excluded y data
+   ip : excluded array element number in xi and yi
+   coef : coefficients for ellipsoid
+
+ Example: 
+   [xp,yp,zp,ip,coef] = func_excludeoutlier_ellipsoid3d(f,f_t,f_tt,theta);
+
+
+ Copyright: 
+
+       Nobuhito Mori, Kyoto University
+       Holger Nahrstaedt
+
+    """
     n = np.max(xi.shape)
     _lambda = np.sqrt(2*np.log(n))
 
@@ -93,6 +124,38 @@ def excludeoutlier_ellipsoid3d(xi,yi,zi,theta):
     return (xp,yp,zp,ip,coef)
 
 def despike_phasespace3d( fi, i_plot = 0, i_opt=0 ):
+    """
+This subroutine excludes spike noise from Acoustic Doppler 
+ Velocimetry (ADV) data using phase-space method, using 
+ modified Goring and Nikora (2002) method by Nobuhito Mori (2005).
+ Further modified by Joseph Ulanowski to remove offset in output (2014).
+ 
+
+ Input
+   fi     : input data with dimension (n,1)
+   i_plot : =9 plot results (optional)
+   i_opt : = 0 or not specified  ; return spike noise as NaN
+           = 1            ; remove spike noise and variable becomes shorter than input length
+           = 2            ; interpolate NaN using cubic polynomial
+
+ Output
+   fo     : output (filtered) data
+   ip     : excluded array element number in fi
+
+ Example: 
+   [fo, ip] = func_despike_phasespace3d( fi, 9 );
+     or
+   [fo, ip] = func_despike_phasespace3d( fi, 9, 2 );
+
+
+
+ Copyright:
+       Holger Nahrstaedt - 2016
+       Nobuhito Mori
+           Disaster Prevention Research Institue
+           Kyoto University
+           mori@oceanwave.jp
+"""
     #
     # --- initial setup
     #
@@ -125,8 +188,8 @@ def despike_phasespace3d( fi, i_plot = 0, i_opt=0 ):
         # step 1: first and second derivatives
         #f_t  = gradient(f);
         #f_tt = gradient(f_t);
-        f_t  = np.concatenate((np.array([0]),np.diff(f)))
-        f_tt = np.concatenate((np.array([0]),np.diff(f_t)))
+        f_t  = gradient(f)
+        f_tt = gradient(f_t)
 
         # step 2: estimate angle between f and f_tt axis
         if n_loop==1:
@@ -177,7 +240,7 @@ def despike_phasespace3d( fi, i_plot = 0, i_opt=0 ):
             x   = np.where(~np.isnan(go))[0]
             y   = go[x]
             xi  = np.arange(np.size(fi))
-            fo = interp1d(x, y, kind='cubic')
+            fo = interp1d(x, y, kind='cubic')(xi)
     else:
         # output despiked value as NaN
         fo = go
@@ -211,34 +274,36 @@ def despike_phasespace3d( fi, i_plot = 0, i_opt=0 ):
         n_p = np.size(p)
 
         # making ellipsoid
+        xe = np.zeros(n_p*n_t+n_p)
+        ye = np.zeros(n_p*n_t+n_p)
+        ze = np.zeros(n_p*n_t+n_p)
         for it in np.arange(n_t):
             for _is in np.arange(n_p):
-                xe[n_p*(it-1)+_is] = a*np.sin(p[_is])*np.cos(t[it])
-                ye[n_p*(it-1)+_is] = b*np.sin(p[_is])*np.sin(t[it])
-                ze[n_p*(it-1)+_is] = c*np.cos(p[_is]);
+                xe[n_p*it+_is] = a*np.sin(p[_is])*np.cos(t[it])
+                ye[n_p*it+_is] = b*np.sin(p[_is])*np.sin(t[it])
+                ze[n_p*it+_is] = c*np.cos(p[_is])
 
         xer = xe*RB[0,0] + ye*RB[0,1] + ze*RB[0,2]
         yer = xe*RB[1,0] + ye*RB[1,1] + ze*RB[1,2]
         zer = xe*RB[2,0] + ye*RB[2,1] + ze*RB[2,2]
         
         # plot figures
-        figure(1);clf
-        plot3(f,f_t,f_tt,'b*','MarkerSize',3)
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        ax.plot(f,f_t,f_tt,'b*',markersize=3)
         #hold on
-        plot3(F[ip],F_t[ip],F_tt[ip],'ro','MarkerFaceColor','r','MarkerSize',5)
-        plot3(xer,yer,zer,'k-');
-        #hold off
-        #axis equal
-        #grid on
-        xlabel('u');
-        ylabel('\Delta u');
-        zlabel('\Delta^2 u');
+        ax.plot(F[ip],F_t[ip],F_tt[ip],'ro',markerfacecolor='r',markersize=5)
+        ax.plot(xer,yer,zer,'k-');
+
+        plt.xlabel('u');
+        plt.ylabel('\Delta u');
+        #plt.zlabel('\Delta^2 u');
 
 
-        figure(2);clf
-        plot(fi,'k-');
+        fig2 = plt.figure()
+        plt.plot(fi,'k-')
 
-        plot(ip,fi[ip],'ro');
+        plt.plot(ip,fi[ip],'ro')
         if i_opt==2:
-            plot(fo,'r-');
+            plt.plot(fo,'r-')
     return (fo, ip)
