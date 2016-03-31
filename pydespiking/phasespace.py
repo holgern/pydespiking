@@ -15,8 +15,10 @@ from mpl_toolkits.mplot3d import Axes3D
 
 __all__ = ['gradient', 'despike_phasespace3d','excludeoutlier_ellipsoid3d']
 
+
 def gradient(f):
     return np.concatenate((np.array([0]),np.diff(f)))
+
 
 def excludeoutlier_ellipsoid3d(xi,yi,zi,theta):
     """
@@ -98,9 +100,9 @@ def excludeoutlier_ellipsoid3d(xi,yi,zi,theta):
         y1 = Y[i]
         z1 = Z[i]
         # point on the ellipsoid
-        x2 = a*b*c*x1/np.sqrt((a*c*y1)**2+b**2*(c**2*x1**2+a**2*z1**2))
-        y2 = a*b*c*y1/np.sqrt((a*c*y1)**2+b**2*(c**2*x1**2+a**2*z1**2))
-        zt = c**2* ( 1 - (x2/a)**2 - (y2/b)**2 )
+        x2 = a*b*c*x1/np.sqrt((a*c*y1)**2+(b**2)*((c**2)*(x1**2)+(a**2)*(z1**2)))
+        y2 = a*b*c*y1/np.sqrt((a*c*y1)**2+(b**2)*((c**2)*(x1**2)+(a**2)*(z1**2)))
+        zt = (c**2)* ( 1 - (x2/a)**2 - (y2/b)**2 )
         if z1 < 0:
             z2 = -np.sqrt(zt)
         elif z1 > 0:
@@ -109,7 +111,7 @@ def excludeoutlier_ellipsoid3d(xi,yi,zi,theta):
             z2 = 0
 
         # check outlier from ellipsoid
-        dis = (x2**2+y2**2+z2**2) - (x1**2+y1**2+z1**2)
+        dis = (x2**2 + y2**2 + z2**2) - (x1**2 + y1**2 + z1**2)
         if dis < 0:
             ip = np.append(ip,i)
             xp = np.append(xp,xi[i])
@@ -122,6 +124,7 @@ def excludeoutlier_ellipsoid3d(xi,yi,zi,theta):
     coef[1] = b
     coef[2] = c
     return (xp,yp,zp,ip,coef)
+
 
 def despike_phasespace3d( fi, i_plot = 0, i_opt=0 ):
     """

@@ -83,8 +83,8 @@ if not release:
                        'isrelease': str(ISRELEASED)})
     finally:
         a.close()
-
-
+    
+    
 # BEFORE importing distutils, remove MANIFEST. distutils doesn't properly
 # update it when the contents of directories change.
 if os.path.exists('MANIFEST'):
@@ -99,6 +99,16 @@ if sys.platform == "darwin":
 
 setup_args = {}
 
+
+def generate_cython():
+    cwd = os.path.abspath(os.path.dirname(__file__))
+    print("Cythonizing sources")
+    p = subprocess.call([sys.executable,
+                          os.path.join(cwd, 'util', 'cythonize.py'),
+                          'pywt'],
+                         cwd=cwd)
+    if p != 0:
+        raise RuntimeError("Running cythonize failed!")
 
 
 def configuration(parent_package='',top_path=None):

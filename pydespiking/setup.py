@@ -7,7 +7,7 @@ def configuration(parent_package='', top_path=None):
 
     config = Configuration('pydespiking', parent_package, top_path)
 
-    #config.add_data_dir('tests')
+    config.add_data_dir('tests')
 
     config.make_config_py()
     return config
